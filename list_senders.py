@@ -16,11 +16,19 @@ import re
 
 DEFAULT_THRESHOLD = 50
 
+def sizeof_fmt(num, suffix='B'):
+    for unit in ['','Ki','Mi','Gi','Ti','Pi','Ei','Zi']:
+        if abs(num) < 1024.0:
+            return "%3.1f%s%s" % (num, unit, suffix)
+        num /= 1024.0
+    return "%.1f%s%s" % (num, 'Yi', suffix)
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("mbox_path", help="the path of the mbox file")
-    parser.add_argument("--threshold", help="number of mails to use as the threshold", default=DEFAULT_THRESHOLD, type=int)
-    parser.add_argument("--group-by-email", help="mails will be grouped based on the email present in the FROM field. This can be hasardous, as formats may differ.", default=False, action="store_true")
+    parser.add_argument("--threshold", '-t', help="number of mails/bytes to use as the threshold", default=DEFAULT_THRESHOLD, type=int)
+    parser.add_argument("--from", '-f', help="use the entire FROM field for grouping", dest="strip_emails", default=True, action="store_false")
+    parser.add_argument("--count", '-c',  help="only count the number of emails rather than the size", dest="report_size", default=True, action="store_false")
     return parser.parse_args()
 
 def open_mbox_file():
@@ -30,16 +38,20 @@ def open_mbox_file():
         exit(0)
     return mailbox.mbox(args.mbox_path)
 
-def get_frequencies(mbox, group_by_email):
+def get_frequencies(mbox, args):
     frequencies = defaultdict(lambda: 0)
     for message in mbox:
-        full_from = message['from']
-        if group_by_email:
-            matches = re.findall(r'[\w.+-]+@[\w.+-]+', full_from)
+        if args.strip_emails:
+            matches = re.findall(r'[\w.+-]+@[\w.+-]+', message['from'])
             key = matches[0] if len(matches) > 0 else "no email found"
         else:
-            key = full_from
-        frequencies[key] += 1
+            key = message['from']
+
+        if args.report_size:
+            frequencies[key] += int(message['Content-Length'])
+        else:
+            frequencies[key] += 1
+
     return frequencies
 
 def filter_frequencies(frequencies, threshold):
@@ -58,11 +70,16 @@ def sort_frequencies(frequencies):
 if __name__ == '__main__':
     args = parse_args()
     mbox = open_mbox_file()
-    frequencies = get_frequencies(mbox, args.group_by_email)
+    frequencies = get_frequencies(mbox, args)
     frequencies_filtered = filter_frequencies(frequencies, args.threshold)
     if len(frequencies_filtered) == 0:
         print("no matches ! no single sender sent you over %s mails" % args.threshold)
         exit(1)
     frequencies_sorted = sort_frequencies(frequencies_filtered)
-    for line in frequencies_sorted:
-        print("%s mails from : '%s'" % (line[1], line[0]))
+    if args.report_size:
+        for line in frequencies_sorted:
+            print("%9s: '%s'" % (sizeof_fmt(line[1]), line[0]))
+    else:
+        for line in frequencies_sorted:
+            print("%s mails from : '%s'" % (line[1], line[0]))
+
