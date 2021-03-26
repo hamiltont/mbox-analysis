@@ -33,7 +33,7 @@ def open_mbox_file():
 def get_frequencies(mbox, group_by_email):
     frequencies = defaultdict(lambda: 0)
     for message in mbox:
-        full_from = message.get_from()
+        full_from = message['from']
         if group_by_email:
             matches = re.findall(r'[\w.+-]+@[\w.+-]+', full_from)
             key = matches[0] if len(matches) > 0 else "no email found"
