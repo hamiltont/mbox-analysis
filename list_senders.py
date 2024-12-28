@@ -72,7 +72,7 @@ def open_mbox_file():
         logging.error("path '%s' is not a file", args.mbox_path)
         exit(0)
 
-    return tracking_mailbox.TrackingMbox(args.mbox_path, print_progress=True, max_messages=1000)
+    return tracking_mailbox.TrackingMbox(args.mbox_path, print_progress=True, max_messages=None)
 
 
 def get_message_size(message):
