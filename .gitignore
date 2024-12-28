@@ -1,5 +1,9 @@
 .vscode
 
-mbox/
+venv/
+error_log.txt
 
+mbox/
 *.mbox
+
+*.pyc
